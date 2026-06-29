@@ -12,39 +12,39 @@ export const seedData = {
   ],
   project: {
     id: "proj1",
-    title: "Invent Your Own Number System",
+    title: "Build a Secret Message Encoder",
     subject: "Computational Thinking (CBSE Class 8 CT & AI curriculum)",
-    drivingQuestion: "If you could design a counting system from scratch, how would you make it work — and how would you teach someone else to use it?",
+    drivingQuestion: "If you had to send a secret message that only your friend could read, how would you design the rules — and could someone else crack it?",
     milestones: [
-      { 
-        id: "m1", 
-        title: "Research existing number systems", 
-        instructions: "Briefly describe how 2 number systems (e.g., binary, Roman, Egyptian) represent numbers, and what base each uses.", 
-        maxMarks: 15 
+      {
+        id: "m1",
+        title: "Understand the pattern",
+        instructions: "Manually shift every letter of the word HELLO by 3 positions (A→D, B→E, C→F, and so on). Write out the encoded word letter by letter and explain the rule you used in your own words.",
+        maxMarks: 15
       },
-      { 
-        id: "m2", 
-        title: "Design your own base system", 
-        instructions: "Choose a base (not 2, 3, or 10). List your digit symbols (0 to base−1) and explain why you chose that base.", 
-        maxMarks: 20 
+      {
+        id: "m2",
+        title: "Write the encode algorithm",
+        instructions: "Write a step-by-step algorithm (like a recipe) that anyone could follow to encode any word using a secret key number. Your algorithm must have at least 4 clear numbered steps and handle what happens when the shift goes past Z.",
+        maxMarks: 20
       },
-      { 
-        id: "m3", 
-        title: "Build a model", 
-        instructions: "Describe (in words, or attach a photo description) how you'd represent place values physically — e.g., using blocks, sticks, or a drawing, similar to the 'pipes' idea for binary/ternary.", 
-        maxMarks: 20 
+      {
+        id: "m3",
+        title: "Test your encoder",
+        instructions: "Apply your encode algorithm to 3 different words using key = 5. Show each letter's transformation one by one. Example format: CAT with key 5 → C(2)+5=7=H, A(0)+5=5=F, T(19)+5=24=Y → HFY.",
+        maxMarks: 20
       },
-      { 
-        id: "m4", 
-        title: "Write & test a conversion algorithm", 
-        instructions: "Write step-by-step rules to convert a decimal number into your system, and back. Show the conversion worked out for 2 example numbers.", 
-        maxMarks: 25 
+      {
+        id: "m4",
+        title: "Write the decode algorithm",
+        instructions: "Now reverse it. Write the step-by-step rules to decode an encoded message when you know the key. Then test it: decode the message MJQQT using key 5. Show each letter's reverse transformation and state the original word.",
+        maxMarks: 25
       },
-      { 
-        id: "m5", 
-        title: "Apply it + present", 
-        instructions: "Use your system for one real purpose (e.g., a secret code, a measuring chart) and explain it in 3–4 sentences.", 
-        maxMarks: 20 
+      {
+        id: "m5",
+        title: "Crack a cipher without the key",
+        instructions: "You have intercepted this encoded message: KHOOR. You do NOT know the key. Describe your strategy for finding the key, then try all shift values from 1 to 25 until you find a real English word. State the key you found and the decoded message.",
+        maxMarks: 20
       }
     ]
   },
@@ -52,23 +52,23 @@ export const seedData = {
     {
       studentId: "s1",
       milestoneId: "m1",
-      response: "Binary uses base 2 with digits 0-1. Roman numerals are base-less but use key letters like I, V, X, L, C, D, M. Egyptian number system uses a simple grouping base-10 system with distinct hieroglyphic symbols.",
+      response: "I shifted each letter of HELLO by 3 positions forward in the alphabet. H→K, E→H, L→O, L→O, O→R. So HELLO becomes KHOOR. The rule is: move each letter 3 steps forward. If you go past Z, wrap back to A.",
       status: "graded",
-      marks: 13,
-      feedback: "Good explanation of the three systems, missing a detailed description of base properties."
+      marks: 14,
+      feedback: "Excellent! Clear letter-by-letter breakdown and correctly identified the wrap-around rule."
     },
     {
       studentId: "s1",
       milestoneId: "m2",
-      response: "I chose base 4. The symbols are 0, 1, 2, and 3. I chose this base because it fits with computer data logic of binary combinations (each base-4 digit is 2 bits).",
+      response: "Step 1: Write down the alphabet and number each letter A=0, B=1, ... Z=25. Step 2: For each letter in the message, find its number. Step 3: Add the key number to it. Step 4: If the result is more than 25, subtract 26 (wrap around). Step 5: The new number gives you the encoded letter. Repeat for every letter.",
       status: "graded",
       marks: 18,
-      feedback: "Well reasoned choice and correct symbol listing."
+      feedback: "Well structured algorithm. Good handling of the wrap-around with subtraction. Could mention what to do with spaces or punctuation."
     },
     {
       studentId: "s1",
       milestoneId: "m3",
-      response: "For my base-4 model, I will use four color-coded bowls to represent place values (4^0, 4^1, 4^2, 4^3). Each bowl can hold up to 3 beads of matching colors.",
+      response: "Using key 5: DOG → D(3)+5=8=I, O(14)+5=19=T, G(6)+5=11=L → ITL. CAT → C(2)+5=7=H, A(0)+5=5=F, T(19)+5=24=Y → HFY. SUN → S(18)+5=23=X, U(20)+5=25=Z, N(13)+5=18=S → XZS.",
       status: "submitted",
       marks: null,
       feedback: null
@@ -76,7 +76,7 @@ export const seedData = {
     {
       studentId: "s2",
       milestoneId: "m1",
-      response: "Binary is base 2 (0 and 1) and Roman numerals are base-less using additive letters. I also researched Egyptian math which uses tally marks for base 10.",
+      response: "H becomes K because H is the 8th letter and K is the 11th letter, so it moved 3 places. E becomes H. L becomes O. L becomes O. O becomes R. So HELLO with key 3 is KHOOR.",
       status: "submitted",
       marks: null,
       feedback: null
@@ -84,39 +84,39 @@ export const seedData = {
     {
       studentId: "s4",
       milestoneId: "m1",
-      response: "Binary (base 2) uses 0 and 1. Octal (base 8) uses 0-7. I researched how different base systems represent values efficiently.",
+      response: "Shifting HELLO by 3: H(7)+3=10=K, E(4)+3=7=H, L(11)+3=14=O, L(11)+3=14=O, O(14)+3=17=R. Encoded word: KHOOR. Rule: add 3 to the position of each letter. After Z(25) we go back to A(0) using mod 26.",
       status: "graded",
-      marks: 14,
-      feedback: "Very good. Precise base properties defined."
+      marks: 15,
+      feedback: "Perfect. Showed position numbers clearly and used the correct modulo concept."
     },
     {
       studentId: "s4",
       milestoneId: "m2",
-      response: "I chose base 5. The symbols are 0, 1, 2, 3, 4 (using letters A, B, C, D, E representing them). I chose base 5 because humans have 5 fingers on one hand.",
+      response: "1. Assign each letter a number: A=0, B=1, ..., Z=25. 2. For each letter, get its number. 3. Add the secret key to the number. 4. Use modulo 26: new position = (letter number + key) mod 26. 5. Convert the new position back to a letter. 6. Repeat for all letters. Spaces stay as spaces.",
       status: "graded",
-      marks: 19,
-      feedback: "Creative choice of digit symbols and good justification!"
+      marks: 20,
+      feedback: "Outstanding. The modulo formula is exactly right and you correctly handled spaces. Full marks."
     },
     {
       studentId: "s4",
       milestoneId: "m3",
-      response: "I will build a physical abacus with 5 columns. Each column will have 4 rings to represent digit counts.",
+      response: "Key = 5. MANGO → M(12)+5=17=R, A(0)+5=5=F, N(13)+5=18=S, G(6)+5=11=L, O(14)+5=19=T → RFSLT. TIGER → T(19)+5=24=Y, I(8)+5=13=N, G(6)+5=11=L, E(4)+5=9=J, R(17)+5=22=W → YNLJW. RAIN → R(17)+5=22=W, A(0)+5=5=F, I(8)+5=13=N, N(13)+5=18=S → WFNS.",
       status: "graded",
-      marks: 17,
-      feedback: "Excellent design for a place-value abacus."
+      marks: 19,
+      feedback: "All three conversions are correct and clearly shown. Excellent work."
     },
     {
       studentId: "s4",
       milestoneId: "m4",
-      response: "To convert base 10 to base 5, divide by 5 repeatedly and collect remainders. For example, 13 in base 10 is 23 in base 5 (which is CD in my system). 26 in base 10 is 101 in base 5 (which is BAB in my system).",
+      response: "Decode algorithm: 1. Get the position of the encoded letter. 2. Subtract the key. 3. If the result is negative, add 26. 4. Convert back to a letter. Testing with MJQQT key 5: M(12)-5=7=H, J(9)-5=4=E, Q(16)-5=11=L, Q(16)-5=11=L, T(19)-5=14=O → HELLO. The original word was HELLO.",
       status: "graded",
-      marks: 23,
-      feedback: "Algorithm works perfectly and conversions are correct."
+      marks: 24,
+      feedback: "Correct decode algorithm and verified with MJQQT → HELLO. One small note: explicitly state the mod 26 wrap for negative numbers."
     },
     {
       studentId: "s4",
       milestoneId: "m5",
-      response: "I will use this system as a secret code to send private messages to my friends. Since each word corresponds to digit codes, we can encrypt messages by shifting letters.",
+      response: "Strategy: try every key from 1 to 25 and check if the decoded text looks like English. For KHOOR: key 1 gives JGNNQ, key 2 gives IFMMP, key 3 gives HELLO — that's a real word! So the key is 3 and the original message is HELLO.",
       status: "submitted",
       marks: null,
       feedback: null
@@ -124,15 +124,15 @@ export const seedData = {
     {
       studentId: "s5",
       milestoneId: "m1",
-      response: "I compared Binary (base 2) and Decimal (base 10). Binary is used by computers, and decimal is used by humans.",
+      response: "H shifted by 3 is K. E shifted by 3 is H. L shifted by 3 is O. L shifted by 3 is O. O shifted by 3 is R. So HELLO becomes KHOOR with a shift of 3.",
       status: "graded",
-      marks: 11,
-      feedback: "A bit brief. Try to explore another system like Roman or Egyptian."
+      marks: 12,
+      feedback: "Correct result but missing the position numbers. Show the arithmetic (e.g. H=7, 7+3=10=K) to demonstrate you understand the underlying rule."
     },
     {
       studentId: "s5",
       milestoneId: "m2",
-      response: "I chose base 12. Digit symbols are 0-9 plus A (10) and B (11). Base 12 is highly divisible by 2, 3, 4, and 6.",
+      response: "To encode a message: first write out the alphabet. Then for each letter move it forward by the key number. Write the new letter down. Do this for all letters in the message.",
       status: "submitted",
       marks: null,
       feedback: null

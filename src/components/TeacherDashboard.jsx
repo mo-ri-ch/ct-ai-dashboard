@@ -131,38 +131,55 @@ export default function TeacherDashboard({
       let suggestedMarks = 0;
       let suggestedFeedback = '';
 
-      if (selectedMilestoneId === 'm1') { // Research existing (max 15)
-        const hasBinary = studentText.includes('binary') || studentText.includes('base 2');
-        const hasRoman = studentText.includes('roman');
-        const hasEgyptian = studentText.includes('egyptian');
-        
-        if (hasBinary && (hasRoman || hasEgyptian)) {
+      if (selectedMilestoneId === 'm1') { // Understand the pattern (max 15)
+        const hasShift = studentText.includes('shift') || studentText.includes('move') || studentText.includes('forward');
+        const hasExample = studentText.includes('hello') || studentText.includes('khoor') || studentText.includes('h→k') || studentText.includes('h becomes k');
+
+        if (hasShift && hasExample) {
           suggestedMarks = 13.5;
-          suggestedFeedback = "AI Evaluation: Excellent. The student correctly analyzed multiple number systems and their base logic. Well written explanation.";
+          suggestedFeedback = "AI Evaluation: Excellent. Student correctly demonstrated the letter shift with a clear example and articulated the rule well.";
         } else {
-          suggestedMarks = 10.5;
-          suggestedFeedback = "AI Evaluation: Satisfactory description of systems, but missing details on the base property of one of the researched systems.";
+          suggestedMarks = 10;
+          suggestedFeedback = "AI Evaluation: Satisfactory attempt but missing a letter-by-letter breakdown showing the shift arithmetic.";
         }
-      } else if (selectedMilestoneId === 'm2') { // Design base system (max 20)
-        const hasBase = studentText.includes('base');
-        const hasSymbols = studentText.includes('symbols') || studentText.includes('digit') || studentText.includes('0');
-        
-        if (hasBase && hasSymbols) {
-          suggestedMarks = 17.5;
-          suggestedFeedback = "AI Evaluation: Outstanding design description. The base system chosen is mathematical, digit symbols are clearly cataloged, and logic is justified.";
+      } else if (selectedMilestoneId === 'm2') { // Write encode algorithm (max 20)
+        const hasSteps = studentText.includes('step') || studentText.includes('1.') || studentText.includes('first');
+        const hasModulo = studentText.includes('mod') || studentText.includes('26') || studentText.includes('wrap');
+
+        if (hasSteps && hasModulo) {
+          suggestedMarks = 18;
+          suggestedFeedback = "AI Evaluation: Well-structured algorithm with correct handling of the wrap-around using mod 26. Clear and complete.";
+        } else {
+          suggestedMarks = 13.5;
+          suggestedFeedback = "AI Evaluation: Algorithm steps are present but the wrap-around (mod 26) is not explicitly addressed. Deduct marks for that gap.";
+        }
+      } else if (selectedMilestoneId === 'm3') { // Test encoder (max 20)
+        const hasPositions = studentText.includes('+') || studentText.includes('position') || studentText.includes('=');
+        if (hasPositions) {
+          suggestedMarks = 18;
+          suggestedFeedback = "AI Evaluation: Letter-by-letter transformations shown clearly with arithmetic. Good test coverage across three words.";
         } else {
           suggestedMarks = 14;
-          suggestedFeedback = "AI Evaluation: Attempted. Base is defined, but digit symbols are slightly ambiguous. Re-check the list of symbols.";
+          suggestedFeedback = "AI Evaluation: Words encoded correctly but arithmetic steps are not shown. Rubric requires showing position calculations.";
         }
-      } else if (selectedMilestoneId === 'm3') { // Build model (max 20)
-        suggestedMarks = 18;
-        suggestedFeedback = "AI Evaluation: Good place-value model logic. The physical blocks or columns analogy aligns with grouping parameters.";
-      } else if (selectedMilestoneId === 'm4') { // Conversion algorithm (max 25)
-        suggestedMarks = 22.5;
-        suggestedFeedback = "AI Evaluation: Accurate algorithm representation. The steps convert base-10 to the target base correctly, showing calculations.";
-      } else if (selectedMilestoneId === 'm5') { // Apply + present (max 20)
-        suggestedMarks = 17;
-        suggestedFeedback = "AI Evaluation: Practical application works well as a coding cipher or measurement tool. Good explanation.";
+      } else if (selectedMilestoneId === 'm4') { // Decode algorithm (max 25)
+        const hasDecode = studentText.includes('decode') || studentText.includes('subtract') || studentText.includes('reverse') || studentText.includes('minus');
+        if (hasDecode) {
+          suggestedMarks = 22.5;
+          suggestedFeedback = "AI Evaluation: Decode algorithm is logically correct — subtracting the key and handling negatives. Test case verified.";
+        } else {
+          suggestedMarks = 17;
+          suggestedFeedback = "AI Evaluation: Some understanding shown but the reverse operation (subtract key) is not clearly stated in the algorithm steps.";
+        }
+      } else if (selectedMilestoneId === 'm5') { // Crack cipher (max 20)
+        const hasBrute = studentText.includes('try') || studentText.includes('brute') || studentText.includes('all') || studentText.includes('each');
+        const hasAnswer = studentText.includes('hello') || studentText.includes('key') || studentText.includes('3');
+        if (hasBrute && hasAnswer) {
+          suggestedMarks = 18.5;
+          suggestedFeedback = "AI Evaluation: Correct brute-force strategy described and correct key identified. Excellent algorithmic reasoning.";
+        } else {
+          suggestedMarks = 13;
+          suggestedFeedback = "AI Evaluation: Some strategy described but the systematic trial approach (brute force) or the final key/answer is not clearly stated.";
       } else {
         suggestedMarks = Math.round(selectedMilestone.maxMarks * 0.85);
         suggestedFeedback = "AI Evaluation: Solid milestone attempt. Meets rubrics checklist parameters.";
@@ -256,7 +273,7 @@ export default function TeacherDashboard({
                     const isSelected = student.id === selectedStudentId;
 
                     const hasBadge = dbData.badges?.some(
-                      (b) => b.studentId === student.id && b.badgeName === 'binary_expert'
+                      (b) => b.studentId === student.id && b.badgeName === 'cipher_expert'
                     );
 
                     return (
@@ -270,7 +287,7 @@ export default function TeacherDashboard({
                           {hasBadge && (
                             <span 
                               style={{ marginLeft: '0.35rem', cursor: 'help' }} 
-                              title="Binary Expert Certified"
+                              title="Code Breaker Certified"
                             >
                               🎖️
                             </span>
