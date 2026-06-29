@@ -11,7 +11,7 @@ export default function PrincipalDashboard({ dbData }) {
   // Compute school-wide totals
   const totalStudents = students.length;
   
-  // Overall Average Score across all students
+  // Overall Average Score
   const studentTotalScores = students.map(student => {
     const studentSubs = dbData.submissions.filter(s => s.studentId === student.id && s.status === 'graded');
     return studentSubs.reduce((sum, s) => sum + (s.marks || 0), 0);
@@ -21,7 +21,6 @@ export default function PrincipalDashboard({ dbData }) {
     ? (studentTotalScores.reduce((sum, score) => sum + score, 0) / studentTotalScores.length).toFixed(1)
     : '0.0';
 
-  // Overall Completion Rate %
   const totalSubmissionsPossible = totalStudents * milestones.length;
   const completedSubmissions = dbData.submissions.filter(
     s => s.status === 'submitted' || s.status === 'graded'
@@ -35,11 +34,8 @@ export default function PrincipalDashboard({ dbData }) {
   const teacherRollups = teachers.map(teacher => {
     const teacherStudents = students.filter(s => s.teacherId === teacher.id);
     const teacherStudentIds = teacherStudents.map(s => s.id);
-    
-    // Submissions for this teacher's class
     const teacherSubs = dbData.submissions.filter(s => teacherStudentIds.includes(s.studentId));
     
-    // Class completion rate
     const classTotalSubmissionsPossible = teacherStudents.length * milestones.length;
     const classCompletedSubmissions = teacherSubs.filter(
       s => s.status === 'submitted' || s.status === 'graded'
@@ -48,7 +44,6 @@ export default function PrincipalDashboard({ dbData }) {
       ? Math.round((classCompletedSubmissions / classTotalSubmissionsPossible) * 100)
       : 0;
 
-    // Class average
     const classScores = teacherStudents.map(student => {
       const subs = teacherSubs.filter(s => s.studentId === student.id && s.status === 'graded');
       return subs.reduce((sum, s) => sum + (s.marks || 0), 0);
@@ -67,12 +62,54 @@ export default function PrincipalDashboard({ dbData }) {
     };
   });
 
-  // Render drilldown Teacher Dashboard if set
+  // Dynamic Computational Thinking (CT) Pillars Competency Calculation
+  // We calculate score % for graded submissions matching different pillars
+  const getPillarAverageScore = (milestoneIds) => {
+    const matchingSubs = dbData.submissions.filter(
+      s => milestoneIds.includes(s.milestoneId) && s.status === 'graded'
+    );
+    if (matchingSubs.length === 0) return 70; // fallback standard default for display
+
+    let totalEarnedPercentage = 0;
+    matchingSubs.forEach(s => {
+      const max = milestones.find(m => m.id === s.milestoneId).maxMarks;
+      totalEarnedPercentage += (s.marks / max) * 100;
+    });
+
+    return Math.round(totalEarnedPercentage / matchingSubs.length);
+  };
+
+  const ctPillars = [
+    {
+      name: 'Decomposition',
+      description: 'Breaking down systems (Milestones 1 & 2)',
+      score: getPillarAverageScore(['m1', 'm2']),
+      color: '#3b82f6' // Blue
+    },
+    {
+      name: 'Abstraction',
+      description: 'Isolating digit symbols & base choice (Milestones 2 & 3)',
+      score: getPillarAverageScore(['m2', 'm3']),
+      color: '#a855f7' // Violet
+    },
+    {
+      name: 'Algorithmic Thinking',
+      description: 'Conversion division algorithm (Milestone 4)',
+      score: getPillarAverageScore(['m4']),
+      color: '#f59e0b' // Amber
+    },
+    {
+      name: 'Pattern Recognition',
+      description: 'Place value models & ciphers (Milestones 3 & 5)',
+      score: getPillarAverageScore(['m3', 'm5']),
+      color: '#10b981' // Emerald
+    }
+  ];
+
   if (drilldownTeacherId) {
     const selectedTeacher = teachers.find(t => t.id === drilldownTeacherId);
     return (
       <div className="principal-drilldown-wrapper">
-        {/* Breadcrumb Header */}
         <div className="breadcrumb-nav">
           <span className="breadcrumb-link" onClick={() => setDrilldownTeacherId(null)}>
             School Overview
@@ -122,62 +159,91 @@ export default function PrincipalDashboard({ dbData }) {
         </div>
       </div>
 
-      {/* Teacher Rollup Card */}
-      <div className="card rollup-card">
-        <h3>Classroom Performance Summary</h3>
-        <p className="section-description">
-          Rollup metrics by teaching class. Click any row to drill down into class student rosters and read student submissions.
-        </p>
+      <div className="principal-grid">
+        {/* Left Side: Rollup Summary Table */}
+        <div className="card rollup-card">
+          <h3>Classroom Performance Summary</h3>
+          <p className="section-description">
+            Rollup metrics by teaching class. Click any row to drill down into student rosters.
+          </p>
 
-        <div className="table-responsive">
-          <table className="rollup-table">
-            <thead>
-              <tr>
-                <th>Teacher Name</th>
-                <th>Username</th>
-                <th>Class Size</th>
-                <th>Class Average</th>
-                <th>Completion Rate</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {teacherRollups.map(rollup => (
-                <tr 
-                  key={rollup.id} 
-                  onClick={() => setDrilldownTeacherId(rollup.id)}
-                  className="rollup-row"
-                >
-                  <td>
-                    <strong>{rollup.name}</strong>
-                  </td>
-                  <td><code>{rollup.username}</code></td>
-                  <td>{rollup.classSize} students</td>
-                  <td>
-                    <span className="average-badge">
-                      {rollup.averageScore}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="table-progress-cell">
-                      <span className="progress-text">{rollup.completionRate}%</span>
-                      <div className="mini-progress-bar">
-                        <div 
-                          className="mini-progress-fill" 
-                          style={{ width: `${rollup.completionRate}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <button className="btn btn-secondary drilldown-btn">
-                      Inspect Class →
-                    </button>
-                  </td>
+          <div className="table-responsive">
+            <table className="rollup-table">
+              <thead>
+                <tr>
+                  <th>Teacher Name</th>
+                  <th>Class Size</th>
+                  <th>Class Average</th>
+                  <th>Completion Rate</th>
+                  <th>Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {teacherRollups.map(rollup => (
+                  <tr 
+                    key={rollup.id} 
+                    onClick={() => setDrilldownTeacherId(rollup.id)}
+                    className="rollup-row"
+                  >
+                    <td>
+                      <strong>{rollup.name}</strong>
+                    </td>
+                    <td>{rollup.classSize} students</td>
+                    <td>
+                      <span className="average-badge">
+                        {rollup.averageScore}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="table-progress-cell">
+                        <span className="progress-text">{rollup.completionRate}%</span>
+                        <div className="mini-progress-bar">
+                          <div 
+                            className="mini-progress-fill" 
+                            style={{ width: `${rollup.completionRate}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <button className="btn btn-secondary drilldown-btn">
+                        Inspect Class →
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right Side: Computational Thinking Competency Heatmap */}
+        <div className="card competency-card">
+          <h3>Computational Thinking Pillars</h3>
+          <p className="section-description">
+            Aggregated curriculum competence ratings mapped directly to core CT skills.
+          </p>
+
+          <div className="competency-pillars-list">
+            {ctPillars.map((pillar, idx) => (
+              <div key={idx} className="pillar-item">
+                <div className="pillar-info">
+                  <div className="pillar-title">
+                    <span className="color-dot" style={{ backgroundColor: pillar.color }}></span>
+                    <strong>{pillar.name}</strong>
+                  </div>
+                  <span className="pillar-score">{pillar.score}% Strength</span>
+                </div>
+                <div className="pillar-desc">{pillar.description}</div>
+                <div className="pillar-bar-bg">
+                  <div 
+                    className="pillar-bar-fill" 
+                    style={{ width: `${pillar.score}%`, backgroundColor: pillar.color }}
+                  ></div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -300,7 +366,19 @@ export default function PrincipalDashboard({ dbData }) {
           transition: width var(--transition-slow);
         }
 
-        /* Rollup Card & Table styles */
+        /* Principal Grid Layout */
+        .principal-grid {
+          display: grid;
+          grid-template-columns: 1.2fr 1fr;
+          gap: 1.5rem;
+        }
+
+        @media (max-width: 900px) {
+          .principal-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
         .rollup-card {
           padding: 1.5rem;
         }
@@ -393,6 +471,67 @@ export default function PrincipalDashboard({ dbData }) {
         .drilldown-btn {
           padding: 0.35rem 0.85rem;
           font-size: 0.8rem;
+        }
+
+        /* Competency pillars details list */
+        .competency-card {
+          padding: 1.5rem;
+        }
+
+        .competency-pillars-list {
+          display: flex;
+          flex-direction: column;
+          gap: 1.25rem;
+        }
+
+        .pillar-item {
+          display: flex;
+          flex-direction: column;
+          gap: 0.3rem;
+        }
+
+        .pillar-info {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .pillar-title {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.95rem;
+        }
+
+        .color-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+
+        .pillar-score {
+          font-size: 0.85rem;
+          font-weight: 700;
+          color: var(--text-primary);
+        }
+
+        .pillar-desc {
+          font-size: 0.75rem;
+          color: var(--text-secondary);
+        }
+
+        .pillar-bar-bg {
+          height: 6px;
+          background-color: var(--bg-primary);
+          border-radius: var(--radius-full);
+          border: 1px solid var(--border-color);
+          overflow: hidden;
+          margin-top: 0.25rem;
+        }
+
+        .pillar-bar-fill {
+          height: 100%;
+          border-radius: var(--radius-full);
         }
       `}</style>
     </div>

@@ -5,16 +5,30 @@ export default function StudentDashboard({ currentUser, dbData, onAddSubmission 
   const [responseText, setResponseText] = useState('');
   const [feedbackMsg, setFeedbackMsg] = useState('');
 
+  // Active side tab for Milestone panel
+  const [activePanelTab, setActivePanelTab] = useState('submit'); // 'submit' | 'tutor'
+
+  // AI Tutor Chat states
+  const [chatMessages, setChatMessages] = useState([
+    {
+      sender: 'tutor',
+      text: `Hello ${currentUser.name}! I am your Computational Thinking AI coach. Ask me anything about binary, custom number bases, division algorithms, or project rubrics to help you complete your project!`,
+      time: 'Just now'
+    }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+
+  // Interactive base sandbox states
+  const [sandboxBase, setSandboxBase] = useState(6);
+  const [sandboxDecimal, setSandboxDecimal] = useState(20);
+
   const studentSubmissions = dbData.submissions.filter(s => s.studentId === currentUser.id);
   const milestones = dbData.project.milestones;
 
   // Calculate totals
   const totalMaxMarks = milestones.reduce((sum, m) => sum + m.maxMarks, 0);
-  
-  // Completed count
   const completedMilestones = studentSubmissions.filter(s => s.status === 'submitted' || s.status === 'graded').length;
-  
-  // Graded count and marks
   const gradedSubmissions = studentSubmissions.filter(s => s.status === 'graded');
   const totalEarnedMarks = gradedSubmissions.reduce((sum, s) => sum + (s.marks || 0), 0);
 
@@ -22,7 +36,6 @@ export default function StudentDashboard({ currentUser, dbData, onAddSubmission 
   const selectedMilestone = milestones.find(m => m.id === selectedMilestoneId);
   const activeSubmission = studentSubmissions.find(s => s.milestoneId === selectedMilestoneId);
 
-  // Status computation for rendering list
   const getMilestoneStatus = (milestoneId) => {
     const sub = studentSubmissions.find(s => s.milestoneId === milestoneId);
     return sub ? sub.status : 'not_started';
@@ -38,14 +51,160 @@ export default function StudentDashboard({ currentUser, dbData, onAddSubmission 
     setTimeout(() => setFeedbackMsg(''), 4000);
   };
 
+  // Convert decimal to target base representation details
+  const getBaseRepresentation = (dec, base) => {
+    const dVal = parseInt(dec, 10);
+    const bVal = parseInt(base, 10);
+    if (isNaN(dVal) || isNaN(bVal) || dVal < 0 || bVal < 2 || bVal > 16) {
+      return { str: '0', columns: [] };
+    }
+
+    const str = dVal.toString(bVal).toUpperCase();
+    
+    // Create columns: units (base^0), base^1, base^2, base^3
+    const cols = [];
+    let remainder = dVal;
+    
+    // We compute 4 place value columns: base^3, base^2, base^1, base^0
+    for (let power = 3; power >= 0; power--) {
+      const placeValue = Math.pow(bVal, power);
+      const digitValue = Math.floor(remainder / placeValue);
+      remainder = remainder % placeValue;
+      
+      cols.push({
+        power,
+        placeValue,
+        digitValue,
+        digitChar: digitValue.toString(16).toUpperCase()
+      });
+    }
+
+    return { str, columns: cols };
+  };
+
+  const sandboxResult = getBaseRepresentation(sandboxDecimal, sandboxBase);
+
+  // Simulated AI Chat Response logic
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const userMsg = {
+      sender: 'user',
+      text: chatInput,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setChatMessages(prev => [...prev, userMsg]);
+    const promptText = chatInput.toLowerCase();
+    setChatInput('');
+    setIsTyping(true);
+
+    // Dynamic response computation
+    setTimeout(() => {
+      let tutorReply = '';
+      if (promptText.includes('binary') || promptText.includes('base 2')) {
+        tutorReply = "Binary is base 2. It uses only two digit symbols, 0 and 1. Each column place value represents a power of 2 (1, 2, 4, 8, 16, etc.). Try setting the interactive sandbox to base 2 and typing a decimal value to see how the groupings change!";
+      } else if (promptText.includes('base') || promptText.includes('system') || promptText.includes('digit')) {
+        tutorReply = "A number base represents how many unique digits you have (including 0). For example, base 5 uses digits 0, 1, 2, 3, and 4. When you reach 5, it wraps into the next place value column (5^1, worth 5 in decimal). Use the base playground above to experiment with wrapping points!";
+      } else if (promptText.includes('algorithm') || promptText.includes('convert') || promptText.includes('math')) {
+        tutorReply = "To convert a decimal number to a custom base, divide the decimal number by the target base repeatedly. Write down the remainders in reverse order. For example, to convert 13 to base 5: 13 / 5 = 2 R 3. Then 2 / 5 = 0 R 2. The remainders in reverse give you 23 in base 5!";
+      } else if (promptText.includes('rubric') || promptText.includes('mark') || promptText.includes('grade')) {
+        tutorReply = "To score full marks, teachers look for three things: completeness, logical correctness (correct digit symbols, valid math conversion), and a clear reasoning explanation. Keep your responses detailed!";
+      } else {
+        tutorReply = `Interesting question! As your Computational Thinking coach, I encourage you to check how numbers group up. In base ${sandboxBase}, groups of ${sandboxBase} wrap to the next column. Try playing with the base sandbox to see this visually!`;
+      }
+
+      setChatMessages(prev => [...prev, {
+        sender: 'tutor',
+        text: tutorReply,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }]);
+      setIsTyping(false);
+    }, 1200);
+  };
+
   return (
     <div className="student-dashboard animate-fade-in">
-      <div className="project-intro-card card">
-        <div className="project-badge">Class 8 CT & AI Project</div>
-        <h2>Project: {dbData.project.title}</h2>
-        <p className="subject-line">{dbData.project.subject}</p>
-        <div className="driving-question">
-          <strong>Driving Question:</strong> "{dbData.project.drivingQuestion}"
+      {/* Interactive Sandbox & Intro row */}
+      <div className="header-dual-layout">
+        <div className="project-intro-card card">
+          <div className="project-badge">Class 8 CT & AI Project</div>
+          <h2>Project: {dbData.project.title}</h2>
+          <p className="subject-line">{dbData.project.subject}</p>
+          <div className="driving-question">
+            <strong>Driving Question:</strong> "{dbData.project.drivingQuestion}"
+          </div>
+        </div>
+
+        {/* Live Base Simulator Playground */}
+        <div className="card sandbox-card">
+          <div className="sandbox-header">
+            <h4>🔢 Interactive Base Simulator</h4>
+            <span className="sandbox-badge">CT Sandbox Widget</span>
+          </div>
+          <div className="sandbox-inputs">
+            <div className="sandbox-control">
+              <label>Select Base: <strong>{sandboxBase}</strong></label>
+              <input 
+                type="range" 
+                min="2" 
+                max="16" 
+                value={sandboxBase} 
+                onChange={(e) => setSandboxBase(parseInt(e.target.value))} 
+              />
+            </div>
+            <div className="sandbox-control">
+              <label>Decimal Number: </label>
+              <input 
+                type="number" 
+                min="0" 
+                max="256" 
+                value={sandboxDecimal} 
+                onChange={(e) => setSandboxDecimal(Math.max(0, Math.min(256, parseInt(e.target.value) || 0)))} 
+              />
+            </div>
+          </div>
+
+          <div className="sandbox-output">
+            <div className="sandbox-result-text">
+              Decimal <strong>{sandboxDecimal}</strong> in Base <strong>{sandboxBase}</strong> is: 
+              <span className="converted-value"> {sandboxResult.str}</span>
+            </div>
+
+            {/* Place-value Visual Columns */}
+            <div className="place-value-container">
+              {sandboxResult.columns.map((col, index) => {
+                const isActive = sandboxDecimal >= col.placeValue || col.power === 0;
+                return (
+                  <div key={index} className={`place-value-col ${isActive ? 'active' : 'inactive'}`}>
+                    <div className="col-header">
+                      <span className="power-lbl">{sandboxBase}<sup>{col.power}</sup></span>
+                      <span className="value-lbl">({col.placeValue})</span>
+                    </div>
+                    <div className="col-bucket">
+                      {/* Draw beads based on digit value */}
+                      <div className="beads-grid">
+                        {Array.from({ length: col.digitValue }).map((_, i) => (
+                          <span key={i} className="bead"></span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="col-footer">
+                      <span className="digit-char">{col.digitChar}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="sandbox-math-row">
+              {sandboxResult.columns
+                .filter(col => col.digitValue > 0 || col.power === 0)
+                .map((col, i) => `(${col.digitChar} × ${col.placeValue})`)
+                .join(' + ')} = <strong>{sandboxDecimal}</strong>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -113,99 +272,158 @@ export default function StudentDashboard({ currentUser, dbData, onAddSubmission 
           </div>
         </div>
 
-        {/* Right Side: Milestone Submission / View Details */}
+        {/* Right Side: Milestone Submissions / AI Tutor Chat panel */}
         <div className="grid-right-col">
           <div className="card details-panel-card">
             {selectedMilestone ? (
               <div className="milestone-details-view">
-                <div className="panel-header">
-                  <span className="panel-label">Selected Milestone</span>
-                  <h3>{selectedMilestone.title}</h3>
-                  <div className="max-marks-badge">Max Marks: {selectedMilestone.maxMarks}</div>
+                {/* Panel Tab selection */}
+                <div className="panel-tab-bar">
+                  <button 
+                    className={`panel-tab-btn ${activePanelTab === 'submit' ? 'active' : ''}`}
+                    onClick={() => setActivePanelTab('submit')}
+                  >
+                    📝 Submit Response
+                  </button>
+                  <button 
+                    className={`panel-tab-btn ${activePanelTab === 'tutor' ? 'active' : ''}`}
+                    onClick={() => setActivePanelTab('tutor')}
+                  >
+                    🤖 AI Tutor Coach
+                  </button>
                 </div>
 
-                <div className="instructions-section">
-                  <h5>Instructions</h5>
-                  <p>{selectedMilestone.instructions}</p>
-                </div>
-
-                <div className="action-section">
-                  {feedbackMsg && (
-                    <div className="alert alert-success animate-fade-in">
-                      <span>✓</span> {feedbackMsg}
+                {activePanelTab === 'submit' ? (
+                  // Submit workspace tab
+                  <div className="tab-pane-content animate-fade-in">
+                    <div className="panel-header">
+                      <span className="panel-label">Selected Milestone</span>
+                      <h3>{selectedMilestone.title}</h3>
+                      <div className="max-marks-badge">Max Marks: {selectedMilestone.maxMarks}</div>
                     </div>
-                  )}
 
-                  {/* 1. NOT STARTED - Show Text Submission form */}
-                  {!activeSubmission && (
-                    <form onSubmit={handleFormSubmit} className="submission-form">
-                      <div className="input-group">
-                        <label htmlFor="response-text">Your Submission Response</label>
-                        <textarea
-                          id="response-text"
-                          rows="6"
-                          value={responseText}
-                          onChange={(e) => setResponseText(e.target.value)}
-                          placeholder="Type your response instructions here..."
-                          required
-                        ></textarea>
-                      </div>
-                      <button type="submit" className="btn btn-primary submit-btn">
-                        Submit Milestone Response
+                    <div className="instructions-section">
+                      <h5>Instructions</h5>
+                      <p>{selectedMilestone.instructions}</p>
+                    </div>
+
+                    <div className="action-section">
+                      {feedbackMsg && (
+                        <div className="alert alert-success animate-fade-in">
+                          <span>✓</span> {feedbackMsg}
+                        </div>
+                      )}
+
+                      {!activeSubmission && (
+                        <form onSubmit={handleFormSubmit} className="submission-form">
+                          <div className="input-group">
+                            <label htmlFor="response-text">Your Submission Response</label>
+                            <textarea
+                              id="response-text"
+                              rows="6"
+                              value={responseText}
+                              onChange={(e) => setResponseText(e.target.value)}
+                              placeholder="Type your computational logic and description..."
+                              required
+                            ></textarea>
+                          </div>
+                          <button type="submit" className="btn btn-primary submit-btn">
+                            Submit Milestone Response
+                          </button>
+                        </form>
+                      )}
+
+                      {activeSubmission && activeSubmission.status === 'submitted' && (
+                        <div className="submission-status-box waiting">
+                          <div className="status-banner">
+                            <span className="status-icon">🕒</span>
+                            <div>
+                              <h5>Submitted & Awaiting Grade</h5>
+                              <p>Your work has been sent to Mr. Iyer for evaluation.</p>
+                            </div>
+                          </div>
+                          <div className="submitted-response-viewer">
+                            <h6>Your Submitted Response:</h6>
+                            <p className="response-content">{activeSubmission.response}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {activeSubmission && activeSubmission.status === 'graded' && (
+                        <div className="submission-status-box graded">
+                          <div className="status-banner">
+                            <span className="status-icon">🎉</span>
+                            <div>
+                              <h5>Evaluated & Graded</h5>
+                              <p>Your grade and teacher feedback have been posted below.</p>
+                            </div>
+                          </div>
+
+                          <div className="grade-result-card">
+                            <div className="score-block">
+                              <span className="score-num">{activeSubmission.marks}</span>
+                              <span className="score-lbl">/ {selectedMilestone.maxMarks} Marks</span>
+                            </div>
+                            <div className="feedback-block">
+                              <h6>Teacher Feedback:</h6>
+                              <p className="feedback-content">"{activeSubmission.feedback || 'No comments provided.'}"</p>
+                            </div>
+                          </div>
+
+                          <div className="submitted-response-viewer">
+                            <h6>Your Submitted Response:</h6>
+                            <p className="response-content">{activeSubmission.response}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  // AI Tutor Chat coach tab
+                  <div className="tab-pane-content tutor-chat-pane animate-fade-in">
+                    <div className="chat-header">
+                      <h5>🤖 CT & AI Coach</h5>
+                      <span className="chat-status">online helper</span>
+                    </div>
+
+                    <div className="chat-messages-container">
+                      {chatMessages.map((msg, index) => (
+                        <div key={index} className={`chat-bubble-wrapper ${msg.sender}`}>
+                          <div className="chat-bubble">
+                            <p>{msg.text}</p>
+                            <span className="chat-time">{msg.time}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {isTyping && (
+                        <div className="chat-bubble-wrapper tutor">
+                          <div className="chat-bubble typing-bubble">
+                            <span className="typing-dot"></span>
+                            <span className="typing-dot"></span>
+                            <span className="typing-dot"></span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <form onSubmit={handleSendMessage} className="chat-input-bar">
+                      <input 
+                        type="text" 
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        placeholder="Ask: 'Explain Binary' or 'How to convert decimal'..."
+                        disabled={isTyping}
+                      />
+                      <button type="submit" className="btn btn-primary send-chat-btn" disabled={isTyping || !chatInput.trim()}>
+                        Send
                       </button>
                     </form>
-                  )}
-
-                  {/* 2. SUBMITTED - Show read-only details (Waiting for grade) */}
-                  {activeSubmission && activeSubmission.status === 'submitted' && (
-                    <div className="submission-status-box waiting">
-                      <div className="status-banner">
-                        <span className="status-icon">🕒</span>
-                        <div>
-                          <h5>Submitted & Awaiting Grade</h5>
-                          <p>Your work has been sent to Mr. Iyer for evaluation.</p>
-                        </div>
-                      </div>
-                      <div className="submitted-response-viewer">
-                        <h6>Your Submitted Response:</h6>
-                        <p className="response-content">{activeSubmission.response}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 3. GRADED - Show read-only response, marks, and feedback */}
-                  {activeSubmission && activeSubmission.status === 'graded' && (
-                    <div className="submission-status-box graded">
-                      <div className="status-banner">
-                        <span className="status-icon">🎉</span>
-                        <div>
-                          <h5>Evaluated & Graded</h5>
-                          <p>Your grade and teacher feedback have been posted below.</p>
-                        </div>
-                      </div>
-
-                      <div className="grade-result-card">
-                        <div className="score-block">
-                          <span className="score-num">{activeSubmission.marks}</span>
-                          <span className="score-lbl">/ {selectedMilestone.maxMarks} Marks</span>
-                        </div>
-                        <div className="feedback-block">
-                          <h6>Teacher Feedback:</h6>
-                          <p className="feedback-content">"{activeSubmission.feedback || 'No comments provided.'}"</p>
-                        </div>
-                      </div>
-
-                      <div className="submitted-response-viewer">
-                        <h6>Your Submitted Response:</h6>
-                        <p className="response-content">{activeSubmission.response}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="empty-panel-view">
-                <p>Select a milestone from the left to view details and submit your work.</p>
+                <p>Select a milestone from the left to begin.</p>
               </div>
             )}
           </div>
@@ -221,6 +439,18 @@ export default function StudentDashboard({ currentUser, dbData, onAddSubmission 
           max-width: 1200px;
           margin: 0 auto;
           padding-bottom: 3rem;
+        }
+
+        .header-dual-layout {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1.5rem;
+        }
+
+        @media (max-width: 900px) {
+          .header-dual-layout {
+            grid-template-columns: 1fr;
+          }
         }
 
         .project-intro-card {
@@ -262,6 +492,182 @@ export default function StudentDashboard({ currentUser, dbData, onAddSubmission 
           color: var(--text-primary);
         }
 
+        /* Sandbox Playground styles */
+        .sandbox-card {
+          text-align: left;
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          border-top: 4px solid #6366f1;
+        }
+
+        .sandbox-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .sandbox-badge {
+          font-size: 0.7rem;
+          font-weight: 700;
+          background-color: rgba(99,102,241,0.08);
+          color: #6366f1;
+          padding: 0.2rem 0.5rem;
+          border-radius: var(--radius-sm);
+          text-transform: uppercase;
+        }
+
+        .sandbox-inputs {
+          display: grid;
+          grid-template-columns: 1.2fr 1fr;
+          gap: 1rem;
+          background-color: var(--bg-primary);
+          padding: 0.75rem;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-color);
+        }
+
+        .sandbox-control {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+
+        .sandbox-control label {
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+        }
+
+        .sandbox-control input[type="range"] {
+          cursor: pointer;
+        }
+
+        .sandbox-control input[type="number"] {
+          padding: 0.4rem 0.75rem;
+        }
+
+        .sandbox-output {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .sandbox-result-text {
+          font-size: 0.9rem;
+          color: var(--text-secondary);
+        }
+
+        .converted-value {
+          font-family: var(--font-heading);
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: #6366f1;
+          margin-left: 0.35rem;
+        }
+
+        /* Place Value columns */
+        .place-value-container {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 0.5rem;
+        }
+
+        .place-value-col {
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-md);
+          padding: 0.5rem 0.25rem;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          background-color: var(--bg-primary);
+          transition: all var(--transition-fast);
+        }
+
+        .place-value-col.active {
+          border-color: rgba(99,102,241,0.3);
+          background-color: var(--bg-secondary);
+        }
+
+        .col-header {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          font-size: 0.7rem;
+          color: var(--text-tertiary);
+          border-bottom: 1px solid var(--border-color);
+          width: 100%;
+          padding-bottom: 0.25rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .power-lbl {
+          font-weight: 700;
+          color: var(--text-secondary);
+        }
+
+        .place-value-col.active .power-lbl {
+          color: #6366f1;
+        }
+
+        .col-bucket {
+          height: 50px;
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+        }
+
+        .beads-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 3px;
+          justify-content: center;
+          max-width: 45px;
+        }
+
+        .bead {
+          width: 9px;
+          height: 9px;
+          border-radius: 50%;
+          background-color: #6366f1;
+          box-shadow: 0 1px 2px rgba(99,102,241,0.3);
+          display: inline-block;
+          animation: beadFall 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes beadFall {
+          from { transform: translateY(-10px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+
+        .col-footer {
+          border-top: 1px solid var(--border-color);
+          width: 100%;
+          padding-top: 0.25rem;
+          margin-top: 0.5rem;
+          text-align: center;
+        }
+
+        .digit-char {
+          font-family: var(--font-heading);
+          font-weight: 700;
+          font-size: 1.1rem;
+          color: var(--text-primary);
+        }
+
+        .place-value-col.active .digit-char {
+          color: #6366f1;
+        }
+
+        .sandbox-math-row {
+          font-family: var(--font-sans);
+          font-size: 0.75rem;
+          color: var(--text-tertiary);
+          text-align: center;
+        }
+
+        /* Timeline Dashboard grid */
         .dashboard-grid {
           display: grid;
           grid-template-columns: 1fr 1.2fr;
@@ -288,9 +694,6 @@ export default function StudentDashboard({ currentUser, dbData, onAddSubmission 
 
         .stat-card {
           text-align: left;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
         }
 
         .stat-value {
@@ -398,7 +801,6 @@ export default function StudentDashboard({ currentUser, dbData, onAddSubmission 
           color: #ffffff;
         }
 
-        /* Timeline status based markers */
         .timeline-item.status-graded .timeline-marker {
           border-color: var(--status-graded);
           color: var(--status-graded);
@@ -439,12 +841,51 @@ export default function StudentDashboard({ currentUser, dbData, onAddSubmission 
           color: var(--status-graded);
         }
 
-        /* Right column panel */
+        /* Right column Panel Tabs */
         .details-panel-card {
           text-align: left;
           height: 100%;
           display: flex;
           flex-direction: column;
+        }
+
+        .panel-tab-bar {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0.5rem;
+          background-color: var(--bg-tertiary);
+          padding: 0.3rem;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-color);
+          margin-bottom: 1.5rem;
+        }
+
+        .panel-tab-btn {
+          border: none;
+          background: none;
+          padding: 0.6rem;
+          font-weight: 700;
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .panel-tab-btn:hover {
+          color: var(--text-primary);
+        }
+
+        .panel-tab-btn.active {
+          background-color: var(--bg-secondary);
+          box-shadow: var(--shadow-sm);
+          color: var(--role-color);
+        }
+
+        .tab-pane-content {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
         }
 
         .panel-header {
@@ -490,7 +931,6 @@ export default function StudentDashboard({ currentUser, dbData, onAddSubmission 
           margin-bottom: 0.5rem;
           font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 0.02em;
         }
 
         .instructions-section p {
@@ -533,7 +973,6 @@ export default function StudentDashboard({ currentUser, dbData, onAddSubmission 
           color: var(--status-graded);
         }
 
-        /* Submission status view boxes */
         .submission-status-box {
           border-radius: var(--radius-md);
           overflow: hidden;
@@ -583,7 +1022,6 @@ export default function StudentDashboard({ currentUser, dbData, onAddSubmission 
           color: var(--text-tertiary);
           text-transform: uppercase;
           margin-bottom: 0.5rem;
-          letter-spacing: 0.02em;
         }
 
         .response-content {
@@ -593,20 +1031,12 @@ export default function StudentDashboard({ currentUser, dbData, onAddSubmission 
           white-space: pre-wrap;
         }
 
-        /* Graded results score layout */
         .grade-result-card {
           display: flex;
           gap: 1.5rem;
           padding: 1.25rem;
           background-color: var(--bg-secondary);
           border-bottom: 1px solid var(--border-color);
-        }
-
-        @media (max-width: 500px) {
-          .grade-result-card {
-            flex-direction: column;
-            gap: 1rem;
-          }
         }
 
         .score-block {
@@ -654,6 +1084,130 @@ export default function StudentDashboard({ currentUser, dbData, onAddSubmission 
           font-style: italic;
           color: var(--text-primary);
           line-height: 1.5;
+        }
+
+        /* AI Tutor Chat view styles */
+        .tutor-chat-pane {
+          display: flex;
+          flex-direction: column;
+          height: 480px;
+        }
+
+        .chat-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 1px solid var(--border-color);
+          padding-bottom: 0.75rem;
+          margin-bottom: 1rem;
+        }
+
+        .chat-status {
+          font-size: 0.7rem;
+          background-color: #10b981;
+          color: #ffffff;
+          padding: 0.15rem 0.5rem;
+          border-radius: var(--radius-full);
+          font-weight: 600;
+        }
+
+        .chat-messages-container {
+          flex: 1;
+          overflow-y: auto;
+          padding: 0.5rem;
+          background-color: var(--bg-primary);
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-md);
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        .chat-bubble-wrapper {
+          display: flex;
+          width: 100%;
+        }
+
+        .chat-bubble-wrapper.tutor {
+          justify-content: flex-start;
+        }
+
+        .chat-bubble-wrapper.user {
+          justify-content: flex-end;
+        }
+
+        .chat-bubble {
+          padding: 0.75rem 1rem;
+          border-radius: var(--radius-md);
+          max-width: 80%;
+          font-size: 0.875rem;
+          line-height: 1.45;
+          position: relative;
+        }
+
+        .chat-bubble-wrapper.tutor .chat-bubble {
+          background-color: var(--bg-secondary);
+          color: var(--text-primary);
+          border: 1px solid var(--border-color);
+          border-top-left-radius: 2px;
+        }
+
+        .chat-bubble-wrapper.user .chat-bubble {
+          background-color: var(--role-color-light);
+          color: var(--role-color);
+          border: 1px solid rgba(59, 130, 246, 0.25);
+          border-top-right-radius: 2px;
+        }
+
+        .chat-bubble-wrapper.tutor.role-student .chat-bubble {
+          background-color: var(--bg-secondary);
+        }
+
+        .chat-time {
+          display: block;
+          font-size: 0.65rem;
+          color: var(--text-tertiary);
+          text-align: right;
+          margin-top: 0.35rem;
+        }
+
+        /* Typing indicator dots */
+        .typing-bubble {
+          display: flex;
+          gap: 4px;
+          padding: 0.6rem 1rem;
+          align-items: center;
+        }
+
+        .typing-dot {
+          width: 6px;
+          height: 6px;
+          background-color: var(--text-secondary);
+          border-radius: 50%;
+          display: inline-block;
+          animation: chatTyping 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes chatTyping {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+
+        .chat-input-bar {
+          display: flex;
+          gap: 0.5rem;
+        }
+
+        .chat-input-bar input {
+          flex: 1;
+        }
+
+        .send-chat-btn {
+          padding: 0.5rem 1.25rem;
         }
 
         .empty-panel-view {

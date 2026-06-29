@@ -16,6 +16,10 @@ export default function TeacherDashboard({
   const [errorMsg, setErrorMsg] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
 
+  // AI draft states
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiNotice, setAiNotice] = useState('');
+
   const milestones = dbData.project.milestones;
   
   // Get students assigned to this teacher
@@ -39,9 +43,7 @@ export default function TeacherDashboard({
     ? Math.round((completedSubmissions / totalSubmissionsPossible) * 100) 
     : 0;
 
-  // Class Average Calculation:
-  // For each student, get the sum of marks of their graded milestones.
-  // Average is the mean of students' total scores.
+  // Class Average
   const studentTotalScores = classStudents.map(student => {
     const studentSubs = classSubmissions.filter(s => s.studentId === student.id && s.status === 'graded');
     return studentSubs.reduce((sum, s) => sum + (s.marks || 0), 0);
@@ -65,8 +67,8 @@ export default function TeacherDashboard({
     setSelectedStudentId(studentId);
     setErrorMsg('');
     setSaveSuccess('');
+    setAiNotice('');
     
-    // Default to first milestone and pre-load existing grades if present
     const firstMilestoneId = milestones[0].id;
     setSelectedMilestoneId(firstMilestoneId);
     
@@ -86,6 +88,7 @@ export default function TeacherDashboard({
     setSelectedMilestoneId(milestoneId);
     setErrorMsg('');
     setSaveSuccess('');
+    setAiNotice('');
 
     const sub = selectedStudentSubs.find(s => s.milestoneId === milestoneId);
     if (sub && sub.status === 'graded') {
@@ -111,12 +114,70 @@ export default function TeacherDashboard({
 
     onSaveGrade(selectedStudentId, selectedMilestoneId, marksNum, inputFeedback.trim());
     setSaveSuccess('Grade and feedback saved successfully!');
+    setAiNotice('');
     setTimeout(() => setSaveSuccess(''), 3000);
+  };
+
+  // Simulated AI Grading Recommendation Engine
+  const handleAiDraftGrade = () => {
+    if (!activeSubmission || readOnly) return;
+    
+    setIsAiLoading(true);
+    setAiNotice('');
+    setErrorMsg('');
+
+    setTimeout(() => {
+      const studentText = (activeSubmission.response || '').toLowerCase();
+      let suggestedMarks = 0;
+      let suggestedFeedback = '';
+
+      if (selectedMilestoneId === 'm1') { // Research existing (max 15)
+        const hasBinary = studentText.includes('binary') || studentText.includes('base 2');
+        const hasRoman = studentText.includes('roman');
+        const hasEgyptian = studentText.includes('egyptian');
+        
+        if (hasBinary && (hasRoman || hasEgyptian)) {
+          suggestedMarks = 13.5;
+          suggestedFeedback = "AI Evaluation: Excellent. The student correctly analyzed multiple number systems and their base logic. Well written explanation.";
+        } else {
+          suggestedMarks = 10.5;
+          suggestedFeedback = "AI Evaluation: Satisfactory description of systems, but missing details on the base property of one of the researched systems.";
+        }
+      } else if (selectedMilestoneId === 'm2') { // Design base system (max 20)
+        const hasBase = studentText.includes('base');
+        const hasSymbols = studentText.includes('symbols') || studentText.includes('digit') || studentText.includes('0');
+        
+        if (hasBase && hasSymbols) {
+          suggestedMarks = 17.5;
+          suggestedFeedback = "AI Evaluation: Outstanding design description. The base system chosen is mathematical, digit symbols are clearly cataloged, and logic is justified.";
+        } else {
+          suggestedMarks = 14;
+          suggestedFeedback = "AI Evaluation: Attempted. Base is defined, but digit symbols are slightly ambiguous. Re-check the list of symbols.";
+        }
+      } else if (selectedMilestoneId === 'm3') { // Build model (max 20)
+        suggestedMarks = 18;
+        suggestedFeedback = "AI Evaluation: Good place-value model logic. The physical blocks or columns analogy aligns with grouping parameters.";
+      } else if (selectedMilestoneId === 'm4') { // Conversion algorithm (max 25)
+        suggestedMarks = 22.5;
+        suggestedFeedback = "AI Evaluation: Accurate algorithm representation. The steps convert base-10 to the target base correctly, showing calculations.";
+      } else if (selectedMilestoneId === 'm5') { // Apply + present (max 20)
+        suggestedMarks = 17;
+        suggestedFeedback = "AI Evaluation: Practical application works well as a coding cipher or measurement tool. Good explanation.";
+      } else {
+        suggestedMarks = Math.round(selectedMilestone.maxMarks * 0.85);
+        suggestedFeedback = "AI Evaluation: Solid milestone attempt. Meets rubrics checklist parameters.";
+      }
+
+      setInputMarks(suggestedMarks.toString());
+      setInputFeedback(suggestedFeedback);
+      setAiNotice('✨ AI draft populated. Please review, edit if necessary, and save.');
+      setIsAiLoading(false);
+    }, 1000);
   };
 
   return (
     <div className="teacher-dashboard animate-fade-in">
-      {/* Header and Back navigation (if Principal drill-down) */}
+      {/* Header and Back navigation */}
       <div className="dashboard-sub-header">
         {onBackClick && (
           <button onClick={onBackClick} className="btn btn-secondary back-btn">
@@ -276,7 +337,6 @@ export default function TeacherDashboard({
                   </div>
 
                   <div className="grading-action-area">
-                    {/* 1. NOT STARTED */}
                     {!activeSubmission && (
                       <div className="no-submission-alert">
                         <span className="alert-icon">⚪</span>
@@ -284,7 +344,6 @@ export default function TeacherDashboard({
                       </div>
                     )}
 
-                    {/* 2. SUBMITTED OR GRADED */}
                     {activeSubmission && (
                       <div className="submission-eval-container">
                         <div className="student-response-viewer">
@@ -296,11 +355,29 @@ export default function TeacherDashboard({
 
                         {/* Grading Form / Grade Card */}
                         <div className="evaluation-card-container">
-                          <h5>Milestone Evaluation</h5>
+                          <div className="eval-card-header">
+                            <h5>Milestone Evaluation</h5>
+                            {!readOnly && (
+                              <button 
+                                type="button" 
+                                className="btn btn-secondary ai-assistant-btn"
+                                onClick={handleAiDraftGrade}
+                                disabled={isAiLoading}
+                              >
+                                {isAiLoading ? '✨ Analyzing...' : '✨ Draft with AI'}
+                              </button>
+                            )}
+                          </div>
                           
                           {saveSuccess && (
                             <div className="alert alert-success animate-fade-in">
                               <span>✓</span> {saveSuccess}
+                            </div>
+                          )}
+
+                          {aiNotice && (
+                            <div className="alert alert-info animate-fade-in">
+                              <span>ℹ</span> {aiNotice}
                             </div>
                           )}
 
@@ -311,7 +388,6 @@ export default function TeacherDashboard({
                           )}
 
                           {readOnly ? (
-                            // Read-only state for Principal
                             <div className="read-only-evaluation-results">
                               {activeSubmission.status === 'graded' ? (
                                 <div className="grade-result-card">
@@ -332,7 +408,6 @@ export default function TeacherDashboard({
                               )}
                             </div>
                           ) : (
-                            // Edit/Add Grades form for Teacher
                             <form onSubmit={handleGradeSubmit} className="grading-form">
                               <div className="form-row">
                                 <div className="input-group input-marks-group">
@@ -587,7 +662,6 @@ export default function TeacherDashboard({
           color: var(--text-primary);
         }
 
-        /* Status colors */
         .status-indicator-badge {
           display: inline-block;
           font-size: 0.75rem;
@@ -620,7 +694,6 @@ export default function TeacherDashboard({
           border: 1px solid var(--border-color);
         }
 
-        /* Right column inspection details */
         .inspection-panel-card {
           text-align: left;
           height: 100%;
@@ -652,7 +725,6 @@ export default function TeacherDashboard({
           color: var(--text-secondary);
         }
 
-        /* Milestone navigation mini-tabs */
         .milestone-tabs {
           display: flex;
           gap: 0.5rem;
@@ -709,7 +781,6 @@ export default function TeacherDashboard({
           background-color: var(--text-tertiary);
         }
 
-        /* Inspected milestone area */
         .inspected-milestone-box {
           border: 1px solid var(--border-color);
           border-radius: var(--radius-md);
@@ -760,7 +831,6 @@ export default function TeacherDashboard({
           color: var(--text-tertiary);
           text-transform: uppercase;
           margin-bottom: 0.5rem;
-          letter-spacing: 0.02em;
         }
 
         .text-viewer-box {
@@ -774,18 +844,37 @@ export default function TeacherDashboard({
           color: var(--text-primary);
         }
 
-        /* Evaluation Block & Grading Form */
         .evaluation-card-container {
           border-top: 1px dashed var(--border-color);
           padding-top: 1.25rem;
+        }
+
+        .eval-card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        }
+
+        .ai-assistant-btn {
+          padding: 0.3rem 0.75rem;
+          font-size: 0.75rem;
+          border-radius: var(--radius-sm);
+          color: #6366f1;
+          background-color: rgba(99, 102, 241, 0.08);
+          border: 1px solid rgba(99, 102, 241, 0.25);
+        }
+        .ai-assistant-btn:hover {
+          background-color: #6366f1;
+          color: #ffffff;
         }
 
         .evaluation-card-container h5 {
           font-size: 0.85rem;
           color: var(--text-tertiary);
           text-transform: uppercase;
-          margin-bottom: 1rem;
           letter-spacing: 0.02em;
+          margin: 0;
         }
 
         .grading-form {
@@ -841,6 +930,12 @@ export default function TeacherDashboard({
           padding: 0.65rem 1.5rem;
         }
 
+        .alert-info {
+          background-color: rgba(99, 102, 241, 0.08);
+          border: 1px solid rgba(99, 102, 241, 0.25);
+          color: #6366f1;
+        }
+
         .alert-danger {
           background-color: rgba(239, 68, 68, 0.08);
           border: 1px solid rgba(239, 68, 68, 0.25);
@@ -859,7 +954,6 @@ export default function TeacherDashboard({
           font-size: 0.85rem;
         }
 
-        /* Empty states */
         .empty-state-visual {
           font-size: 3rem;
           margin-bottom: 0.75rem;
