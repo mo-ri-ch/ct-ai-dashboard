@@ -14,7 +14,10 @@ function App() {
     const savedData = localStorage.getItem('ct_ai_dashboard_db');
     if (savedData) {
       try {
-        setDbData(JSON.parse(savedData));
+        const parsed = JSON.parse(savedData);
+        // Ensure badges array exists
+        if (!parsed.badges) parsed.badges = [];
+        setDbData(parsed);
       } catch (e) {
         console.error('Failed to parse saved data from localStorage, resetting...', e);
         initializeData();
@@ -25,13 +28,14 @@ function App() {
   }, []);
 
   const initializeData = () => {
-    localStorage.setItem('ct_ai_dashboard_db', JSON.stringify(seedData));
-    setDbData(JSON.parse(JSON.stringify(seedData))); // Deep clone to break reference
+    const cloneData = JSON.parse(JSON.stringify(seedData));
+    cloneData.badges = []; // Initialize empty achievements list
+    localStorage.setItem('ct_ai_dashboard_db', JSON.stringify(cloneData));
+    setDbData(cloneData);
   };
 
   // Sync role-specific body class when login status changes
   useEffect(() => {
-    // Remove existing role classes
     document.body.classList.remove('role-student', 'role-teacher', 'role-principal');
     
     if (currentUser) {
@@ -91,7 +95,6 @@ function App() {
           feedback
         };
       } else {
-        // Fallback safety if submission wasn't there
         updatedData.submissions.push({
           studentId,
           milestoneId,
@@ -107,15 +110,36 @@ function App() {
     });
   };
 
-  // State Mutation: Reset demo database back to clean seeded defaults
+  // State Mutation: Award an Achievement Badge
+  const handleAwardBadge = (studentId, badgeName) => {
+    setDbData((prevData) => {
+      const updatedData = { ...prevData };
+      if (!updatedData.badges) updatedData.badges = [];
+      
+      const alreadyEarned = updatedData.badges.some(
+        (b) => b.studentId === studentId && b.badgeName === badgeName
+      );
+
+      if (!alreadyEarned) {
+        updatedData.badges.push({
+          studentId,
+          badgeName,
+          awardedAt: new Date().toISOString()
+        });
+        localStorage.setItem('ct_ai_dashboard_db', JSON.stringify(updatedData));
+      }
+      return updatedData;
+    });
+  };
+
+  // State Mutation: Reset demo database
   const handleResetData = () => {
-    if (window.confirm('Are you sure you want to reset all demo data? This will clear any live submissions and grades recorded during this session.')) {
+    if (window.confirm('Are you sure you want to reset all demo data? This will clear any live submissions, grades, and badges.')) {
       initializeData();
       alert('Demo data has been successfully reverted to the initial seeded state.');
     }
   };
 
-  // Loading page state
   if (!dbData) {
     return (
       <div className="app-loading">
@@ -125,14 +149,12 @@ function App() {
     );
   }
 
-  // Auth Guard
   if (!currentUser) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
   return (
     <div className="dashboard-shell animate-fade-in">
-      {/* Top Banner Navigation Header */}
       <header className="dashboard-header glass">
         <div className="header-brand">
           <div className="logo-badge">
@@ -155,13 +177,13 @@ function App() {
         </div>
       </header>
 
-      {/* Main Content Area rendering correct dashboard based on Active Role */}
       <main className="dashboard-content">
         {currentUser.role === 'student' && (
           <StudentDashboard 
             currentUser={currentUser} 
             dbData={dbData} 
-            onAddSubmission={handleAddSubmission} 
+            onAddSubmission={handleAddSubmission}
+            onAwardBadge={handleAwardBadge}
           />
         )}
         {currentUser.role === 'teacher' && (
@@ -178,7 +200,6 @@ function App() {
         )}
       </main>
 
-      {/* Footer containing developer utility reset tools */}
       <footer className="dashboard-footer">
         <div className="footer-content">
           <p>© 2026 Computational Thinking & AI Curriculum Tracker (Demo System)</p>

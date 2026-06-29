@@ -255,6 +255,10 @@ export default function TeacherDashboard({
 
                     const isSelected = student.id === selectedStudentId;
 
+                    const hasBadge = dbData.badges?.some(
+                      (b) => b.studentId === student.id && b.badgeName === 'binary_expert'
+                    );
+
                     return (
                       <tr 
                         key={student.id} 
@@ -263,6 +267,14 @@ export default function TeacherDashboard({
                       >
                         <td className="student-name-cell">
                           <strong>{student.name}</strong>
+                          {hasBadge && (
+                            <span 
+                              style={{ marginLeft: '0.35rem', cursor: 'help' }} 
+                              title="Binary Expert Certified"
+                            >
+                              🎖️
+                            </span>
+                          )}
                         </td>
                         <td>
                           <div className="table-progress-cell">
